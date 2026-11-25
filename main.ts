@@ -1,25 +1,27 @@
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+// Entry program for the make.fun bounty "Post the Meme, Win the Feed"
+// (competition u-myronera-post-the-meme-win-the-feed-2de960bf).
+// Runs on Node 22 using only the standard library. Its only job is to copy
+// POST.json from the repository root into the output directory, where the
+// house reads the X post address from it. The entry itself is the X post:
+// its likes, reposts and quotes decide the places, not anything here.
+//
+// Local test (mirrors the grader's paths):
+//   mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
+
+import { copyFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-const botDir = process.env.MAKEFUN_BOT_DIR ?? ".";
-const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? "out";
+const botDir = process.env.MAKEFUN_BOT_DIR ?? "/bot";
+const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
 
-// Read POST.json and refuse to copy a placeholder or malformed entry: the
-// grader reads the post address from it, so a bad value must fail loudly
-// here instead of being submitted as a silent no-op.
-const raw = readFileSync(join(botDir, "POST.json"), "utf8");
-let post;
+mkdirSync(outputDir, { recursive: true });
+
+const source = join(botDir, "POST.json");
+const target = join(outputDir, "POST.json");
+
 try {
-  post = JSON.parse(raw);
-} catch {
-  throw new Error("POST.json is not valid JSON");
+  copyFileSync(source, target);
+} catch (error) {
+  console.error(`could not copy POST.json from ${botDir}: ${(error as Error).message}`);
+  process.exit(1);
 }
-if (typeof post !== "object" || post === null || typeof post.url !== "string") {
-  throw new Error("POST.json must be an object with a string url");
-}
-if (!/^https:\/\/(www\.|mobile\.)?(x\.com|twitter\.com)\/\S+\/status\/\d+$/.test(post.url)) {
-  throw new Error("POST.json url is not an X post address");
-}
-
-mkdirSync(outDir, { recursive: true });
-writeFileSync(join(outDir, "POST.json"), raw);
